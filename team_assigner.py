@@ -5,9 +5,15 @@ Created on Wed Jan 17 15:03:13 2018
 
 @author: me
 """
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    raise ImportError('You must have Numpy installed')
 import math
-from scipy.optimize import linear_sum_assignment
+try:
+    from scipy.optimize import linear_sum_assignment
+except ImportError:
+    raise ImportError('You must have Scipy installed')
 import random
 import csv
 import copy
@@ -367,9 +373,14 @@ def genRandomTeam(size):
     if size < len(forced_on_people):
         raise ValueError('the team must be at least as many people as are forced on')
     num_free_slots = size - len(forced_on_people)
+    
+    #list of candidates without the must have people
+    list_of_possible_people = list(range(0, num_people))
+    for person in forced_on_people:
+        list_of_possible_people.remove(person)
     while True:
         num_guesses += 1
-        team_list = random.sample(range(0, num_people), num_free_slots)
+        team_list = random.sample(list_of_possible_people, num_free_slots)
         team_list = team_list + forced_on_people
         if numSeniorsOK(team_list):
             return team_list
@@ -703,16 +714,15 @@ event_names = tuple(event_names_list[0])
 people_per_event = tuple(people_per_event_list[0])
 event_weight = tuple(event_weight_list[0])
 
-#people who must be on. Must be after we create the list of people names
-print(personNameToNum('Antonio Frigo'))
+#people who must be on. Must be after we create the list of people name
 forced_on_people = loadAndCheckForcedOnPeople()
-print(forced_on_people)
+print('Numbers of must be present people:' + str(forced_on_people))
 
 #generate combo array of all data
 scores = fuseScoreMatrix(processed_scores_list, invite_weight_list, event_weight)
 
 #optimize code by compressing the event schedule
-compressSchedule()
+#compressSchedule()
     
 #begin processing
 num_people = len(people_names)
@@ -728,9 +738,8 @@ scores_blocked, person_block_matching = splitScoreArray(scores)
 #debugging
 #this team caused an infinite loop
 prob_team = [0, 3, 4, 9, 11, 13, 14, 15, 16, 17, 20, 21, 23, 24, 27]
-test_team = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+test_team = [0, 1, 3, 7, 10, 11, 12, 13, 15, 16, 18, 22, 27, 28]
 
-#ret_team = optimizeTeam(prob_team)
 
 #prior file data will be loaded when we dump the data
 finished_optimizing_previously, list_of_prior_teams = loadTeams()
