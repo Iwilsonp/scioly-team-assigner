@@ -326,8 +326,6 @@ def forcedOnPeopleOn(team_list):
         return False
     #if everybody on who must be in team
     return True
-        
-    
 
 def getTestScoreBlocked(blocked_person, blocked_event):
     return scores_blocked[blocked_person, blocked_event]
