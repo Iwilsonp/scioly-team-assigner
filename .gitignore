@@ -2,8 +2,9 @@
 *.csv
 
 #but these examples should be there
-!example.csv
+!example_scores.csv
 !event_conflicts.csv
+!forced_on_people.csv
 
 #pickled names of everybody
 outfile
