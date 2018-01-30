@@ -24,25 +24,13 @@ import pickle
 #sorted list of teams
 file_to_save_to = 'team_config.txt'
 csv_of_people_who_must_be_on = 'forced_on_people.csv'
+event_conflicts_csv = 'event_conflicts.csv'
 
 list_of_files = sys.argv[1:]
 if list_of_files == []:
-    print('No score files provided on the command line, using default values')
-    list_of_files = ['prelim_results.csv', 'mit_scores.csv']
+    print('No score files provided on the command line, using examples')
+    list_of_files = ['example_scores.csv']
 
-#built assuming we are team C-38. All self-schedule events given their own block
-event_conflicts = [['Disease Detectives','Fermi Questions'],
-                   ['Anatomy and Physiology','Dynamic Planet','Rocks and Minerals'],
-                   ['Chemistry Lab','Ecology','Remote Sensing'],
-                   ['Herpetology','Optics'],
-                   ['Astronomy','Game On','Microbe Mission'],
-                   ['Experimental Design','Forensics'],
-                   ['Materials Science','Thermodynamics', 'Write It Do It'],
-                   ['Helicopters'],
-                   ['Hovercraft'],
-                   ['Mission Possible'],
-                   ['Mousetrap Vehicle'],
-                   ['Towers']]
 team_size = 15
 max_num_seniors = 7
 
@@ -65,6 +53,16 @@ def isNumber(number):
         return True
     except ValueError:
         return False
+    
+def removeFromList(the_list, value):
+    return_list = []
+    for element in the_list:
+        if isinstance(element, list):
+            return_list.append(removeFromList(element, value))
+        else:
+            if element != value:
+                return_list.append(element)
+    return return_list      
 
 def checkInputData(scores, max_scores, people_per_event, event_names, people_names, is_senior):
     num_ppl, num_events = scores.shape
@@ -75,8 +73,8 @@ def checkInputData(scores, max_scores, people_per_event, event_names, people_nam
     if(len(max_scores) != num_events):
         raise ValueError('number of events mismatch between max score list and score array')
     if(recursive_len(event_conflicts) != num_events):
+        print(recursive_len(event_conflicts))
         raise ValueError('number of events mismatch between event conflict list and score array')
-    
     if(len(people_names) != num_ppl):
         raise ValueError('number of people mismatch between name list and score array')
     if(len(is_senior)!=num_ppl):
@@ -90,6 +88,21 @@ def checkListEquality(list1, list2):
         return True
     else:
         return False
+
+def flattenList(list_of_lists):
+    return_list = []
+    for element in list_of_lists:
+        if isinstance(element, list):
+            return_list = return_list + flattenList(element)
+        else:
+            return_list.append(element)
+    return return_list
+    
+def checkUnsortedListEquality(list1, list2):
+    print(flattenList(list1))
+    flat_list_1 = sorted(flattenList(list1))
+    flat_list_2 = sorted(flattenList(list2))
+    return flat_list_1 == flat_list_2
        
 def checkAllAreEqual(list_of_data):
     if len(list_of_data) == 1:
@@ -97,52 +110,7 @@ def checkAllAreEqual(list_of_data):
     for x in range(0, len(list_of_data) - 1):
         if checkListEquality(list_of_data[x], list_of_data[x+1]) == False:
             return False
-    return True
-
-def checkEventsForConflict(event_1, event_2):
-    if isinstance(event_1, str):
-        event_1 = eventNameToNum(event_1)
-    if isinstance(event_2, str):
-        event_2 = eventNameToNum(event_2)
-    event_1_scores = getCol(scores, event_1)
-    event_2_scores = getCol(scores, event_2)
-    
-    if len(event_1_scores) != len(event_2_scores):
-        raise ValueError('mismatched column lengths in score matrix when compressing schedule')
-    
-    for x in range(0, len(event_1_scores)):
-        if event_1_scores[x] != 0 and event_2_scores[x] != 0:
-            #somebody can do both events
-            return True
-    return False  #if nobody does both events
-
-def checkBlocksForConflict(block_1, block_2):
-    for event_1 in block_1:
-        for event_2 in block_2:
-            if checkEventsForConflict(event_1, event_2) == True:
-                #somebody has events in both blocks
-                return True
-    return False
-
-# tries to combine blocks
-def checkForConflict():
-    for x in range(0, len(event_conflicts)):
-        for y in range(x, len(event_conflicts)):
-            if checkBlocksForConflict(event_conflicts[x], event_conflicts[y]) == False:
-                event_conflicts[x] = event_conflicts[x] + event_conflicts[y]
-                del event_conflicts[y]
-                return True
-    return False
-#combines blocks where there is no chance of conflict (e.g. Heli and Hover)
-def compressSchedule():
-    print('Number of blocks before compression: ' + str(len(event_conflicts)))
-    possible_compression = True       
-    while possible_compression == True:
-        possible_compression = checkForConflict()
-    print('Number of blocks after compression: ' + str(len(event_conflicts)))
-        
-            
-    
+    return True 
 
 def recursive_len(item):  #total items in list of lists. From https://stackoverflow.com/questions/27761463/how-can-i-get-the-total-number-of-elements-in-my-arbitrarily-nested-list-of-list
     if type(item) == list:
@@ -193,9 +161,12 @@ def strListToNumList(str_list, num_type = int):
         
       
 def personNumToName(person_number):
-    if person_number < 0 or person_number >=num_people:
-        return dummy_person_name
-    else:
+    try:
+        if person_number < 0 or person_number >=num_people:
+            return dummy_person_name
+        else:
+            return people_names[person_number]
+    except NameError:   #num_people not defined
         return people_names[person_number]
 
 def personNameToNum(person_name):
@@ -541,6 +512,9 @@ def humanPrintAssignedTeam(assigned_team, to_file = sys.stdout):
         print('Score: ' + str(scoreTeam(assigned_team)), file = to_file)
     print('', file = to_file)
     
+def prettyPrintList(list_of_lists):
+    for element in list_of_lists:
+        print(element)
 
 def humanPrintTeamList(team_list):
     for person in team_list:
@@ -636,13 +610,29 @@ def loadAndCheckForcedOnPeople():
         data_reader = csv.reader(data_file)
         for row in data_reader:
             for person in row:
-                try:
-                    person_num = personNameToNum(person)
-                except ValueError:
-                    raise ValueError('People in the forced on team list must be in the team list')
-                people_who_must_be_on.append(person_num)
+                if person != '':
+                    try:
+                        person_num = personNameToNum(person)
+                    except ValueError:
+                        raise ValueError('People in the forced on team list must be in the team list')
+                    people_who_must_be_on.append(person_num)
+    print('')
+    print('People on every team:')
+    humanPrintTeamList(people_who_must_be_on)
     return people_who_must_be_on
-                    
+
+def loadEventConflicts():
+    event_conflicts = []
+    with open(event_conflicts_csv) as data_file:
+        data_reader = csv.reader(data_file)
+        for row in data_reader:
+            event_conflicts.append(row)
+    event_conflicts = removeFromList(event_conflicts, '')
+    print('')
+    print('The schedule:')
+    prettyPrintList(event_conflicts)
+    return event_conflicts
+            
 
 def loadFile(file_name):  
     print('loading file: ' + str(file_name))     
@@ -674,6 +664,11 @@ def loadFile(file_name):
     checkInputData(np_raw_data_scores, max_data_scores, people_per_event, event_names, people_names, is_senior)
     processed_data_scores = normalizeData(np_raw_data_scores, max_data_scores)
     return processed_data_scores, people_names, is_senior, event_names, people_per_event, event_weight, data_weight
+
+
+#start by importing event blocks
+event_conflicts = loadEventConflicts()
+
 
 #import data from file
 processed_scores_list = []
@@ -747,7 +742,7 @@ test_team = [0, 1, 3, 7, 10, 11, 12, 13, 15, 16, 18, 22, 27, 28]
 finished_optimizing_previously, list_of_prior_teams = loadTeams()
 list_of_best_teams = []
 try:
-    print('Checking saved teams to see if any can be further optimized')
+    print('Checking saved teams to see if any can be further optimized. Do not parallelize this step by opening multiple windows.')
     for x in range(0, len(list_of_prior_teams)):
         assigned_team_and_score = list_of_prior_teams[x]
         score, assigned_team = getScoreAndTeam(assigned_team_and_score)
@@ -777,7 +772,7 @@ except KeyboardInterrupt:
     print('The SystemExit exception is normal. It exits the program so we do not go on to random teams.')
     sys.exit()  #so we don't go on to random teams
     
-print('Finished checking old teams for optimizations. Starting guessing random teams.')
+print('Finished checking old teams for optimizations. Starting guessing random teams. Parallelization by running multiple copies of this program is fine (and recommended).')
 num_tried = 0
 try:
     while True:
